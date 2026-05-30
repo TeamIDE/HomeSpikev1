@@ -55,6 +55,12 @@ Item {
     // bottom row of launcher icons and the grid uses the full width.
     readonly property bool dockEnabled: persist.dockEnabled
 
+    /** Fired when the user taps any tile (grid or dock) to launch its app.
+     *  Stage.qml's wallpaper Loader Connections listens for this and drops
+     *  homeShown immediately — without it, Mir's focus-echo can be
+     *  misread as the launch and the home overlay stays stuck on top. */
+    signal launchRequested(string appId)
+
     // ---- Core modules ----
     PersistedSettings { id: persist }
     WallpaperResolver { id: wallpaper }
@@ -217,6 +223,7 @@ Item {
                         controller: dragController
                         onRemoveRequested: (id, name) => confirmRemove.show(id, name)
                         onEditModeRequested: root.editMode = true
+                        onLaunchRequested: (id) => root.launchRequested(id)
                     }
                 }
             }
@@ -299,6 +306,7 @@ Item {
                         controller: dragController
                         onRemoveRequested: (id, name) => confirmRemove.show(id, name)
                         onEditModeRequested: root.editMode = true
+                        onLaunchRequested: (id) => root.launchRequested(id)
                     }
                 }
             }

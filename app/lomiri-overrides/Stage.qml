@@ -826,6 +826,20 @@ FocusScope {
             value: root.launcherLeftMargin
             when: wallpaper.status === Loader.Ready
         }
+        // The HomeSpike root signals launchRequested the instant the
+        // user taps a tile (before Mir even sees the activate request).
+        // Drop homeShown immediately so the wallpaper Loader demotes back
+        // to z=-2 — otherwise Mir's focus-echo on the same delegate is
+        // mis-classified as a stale echo and homeShown stays stuck on top.
+        Connections {
+            target: wallpaper.item
+            enabled: wallpaper.status === Loader.Ready
+            function onLaunchRequested(appId) {
+                root.homeShown = false;
+                root._inHomeGrace = false;
+                root._focusedAtHomeShow = null;
+            }
+        }
 
         BlurLayer {
             id: blurLayer

@@ -47,6 +47,12 @@ Item {
     /** Emitted on long-press while NOT in edit mode (caller should enable it). */
     signal editModeRequested()
 
+    /** Emitted the instant the user taps the tile to launch its app.
+     *  HomeSpike re-emits this up to Lomiri's Stage so the home overlay
+     *  drops immediately (without waiting for Mir's focus round-trip,
+     *  which can be misread as a stale-echo and ignored). */
+    signal launchRequested(string appId)
+
     // ============================================================
     // Touch / drag handling (declared FIRST — see file header)
     // ============================================================
@@ -67,6 +73,7 @@ Item {
 
         onClicked: {
             if (body.editMode) return;
+            body.launchRequested(body.appId);
             Qt.openUrlExternally("application:///" + body.appId + ".desktop");
         }
         onPressAndHold: {

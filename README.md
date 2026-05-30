@@ -12,6 +12,39 @@ A custom **home surface** for Ubuntu Touch (Lomiri). Replaces "drawer-as-default
 
 HomeSpike is loaded **inside the lomiri shell process** as the background layer (where the wallpaper used to live), so it never appears as a separate app in the task switcher and survives whatever the shell does to surfaces. The Lomiri drawer is still there — long-press an app in it to send the app to your HomeSpike grid.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <a href="pictures/01-home-grid-with-launcher.png"><img src="pictures/01-home-grid-with-launcher.png" width="240" alt="Home grid with Lomiri launcher panel visible on the left"></a><br>
+      <sub><b>Home grid</b><br>Default layout, launcher panel on left, page-dot indicator at the bottom</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="pictures/04-home-with-dock.png"><img src="pictures/04-home-with-dock.png" width="240" alt="Home grid with the bottom dock enabled — launcher panel auto-collapses"></a><br>
+      <sub><b>Home + dock</b><br>Dock at bottom; the launcher panel auto-collapses when the dock is on</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="pictures/02-edit-mode.png"><img src="pictures/02-edit-mode.png" width="240" alt="Edit mode with × badges on tiles, Done pill top-right, settings gear bottom-right"></a><br>
+      <sub><b>Edit mode</b><br>Long-press a tile: × badges, Done pill, settings gear</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <a href="pictures/03-settings-layout-modes.png"><img src="pictures/03-settings-layout-modes.png" width="240" alt="Settings overlay showing the three placement modes: Auto-fill, Snap to grid, Place anywhere"></a><br>
+      <sub><b>Settings</b><br>Page count, dock toggle, and the three placement modes</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="pictures/05-spread-home-button.png"><img src="pictures/05-spread-home-button.png" width="240" alt="Right-edge app spread with the HomeSpike home button at the bottom"></a><br>
+      <sub><b>Spread home button</b><br>Right-swipe spread gets a home button to drop straight back to HomeSpike</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="pictures/06-drawer-add-to-homespike.png"><img src="pictures/06-drawer-add-to-homespike.png" width="240" alt="Lomiri drawer with the 'Add to HomeSpike' long-press context menu"></a><br>
+      <sub><b>Add to HomeSpike</b><br>Long-press any app in Lomiri's drawer → "Add to HomeSpike"</sub>
+    </td>
+  </tr>
+</table>
+
 ## Device support
 
 Works on **any Ubuntu Touch 24.04 (noble) device running Lomiri**, regardless of CPU architecture. Built and tested on the OnePlus Nord N100 (`billie2`, aarch64); the design has no device-specific assumptions and the install pushes plain QML files that lomiri loads via its own QML import paths.
