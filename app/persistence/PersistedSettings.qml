@@ -23,8 +23,17 @@ Item {
         // Lomiri's. Keep our own file separate.
         fileName: "/home/phablet/.config/home-spike/home-spike.conf"
         category: "homeSpike"
-        // pageData is a JSON array of arrays of appIds, one inner array per page.
-        property string pageData:     '[[]]'
+        // pageData is a JSON array — one element per page. Each element is
+        // a per-mode bag holding ALL three layouts so users can switch
+        // placementMode without losing the previous mode's layout:
+        //   [
+        //     { autoFill: [appId, ...],
+        //       snap:     [{appId, col, row}, ...],
+        //       free:     [{appId, xFrac, yFrac}, ...] },
+        //     ...
+        //   ]
+        // Legacy shape `[[appId,...],...]` is migrated into .autoFill on read.
+        property string pageData:     '[{"autoFill":[],"snap":[],"free":[]}]'
         property int    pageCount:    1
         property string hiddenAppIds: "[]"
         property string dockOrder:    "[]"
@@ -32,16 +41,21 @@ Item {
         // Height of the visible dock background plate, in grid units.
         // 1.0 ≈ a thin line under the icons; 12.0 wraps the icons fully.
         property real   dockBgHeight: 12.0
+        // Active tile layout. "autoFill" = current left-to-right reflow;
+        // "snap" = icons sit on a grid but can leave gaps; "free" = icons
+        // are positioned anywhere (fractional coords) and may overlap.
+        property string placementMode: "autoFill"
     }
 
     // ---- Read/write aliases so callers can bind to and mutate values
     //      without poking the underlying Settings object directly. ----
-    property alias pageData:     store.pageData
-    property alias pageCount:    store.pageCount
-    property alias hiddenAppIds: store.hiddenAppIds
-    property alias dockOrder:    store.dockOrder
-    property alias dockEnabled:  store.dockEnabled
-    property alias dockBgHeight: store.dockBgHeight
+    property alias pageData:      store.pageData
+    property alias pageCount:     store.pageCount
+    property alias hiddenAppIds:  store.hiddenAppIds
+    property alias dockOrder:     store.dockOrder
+    property alias dockEnabled:   store.dockEnabled
+    property alias dockBgHeight:  store.dockBgHeight
+    property alias placementMode: store.placementMode
 
     /**
      * Parse a JSON string with a fallback. Used to read array values
@@ -68,5 +82,34 @@ Item {
      */
     function writeJson(value) {
         return JSON.stringify(value);
+    }
+
+    /**
+     * Read pageData as the new per-mode shape, migrating the legacy
+     * `[[appId,...],...]` shape on the fly. Always returns an array of
+     * `{autoFill, snap, free}` objects, never null.
+     */
+    function readPageData() {
+        var raw = readJson(pageData, []);
+        if (!Array.isArray(raw) || raw.length === 0) {
+            return [{ autoFill: [], snap: [], free: [] }];
+        }
+        var out = [];
+        for (var i = 0; i < raw.length; ++i) {
+            var p = raw[i];
+            if (Array.isArray(p)) {
+                // Legacy: bare array of appIds → autoFill bag.
+                out.push({ autoFill: p.slice(), snap: [], free: [] });
+            } else if (p && typeof p === "object") {
+                out.push({
+                    autoFill: Array.isArray(p.autoFill) ? p.autoFill : [],
+                    snap:     Array.isArray(p.snap)     ? p.snap     : [],
+                    free:     Array.isArray(p.free)     ? p.free     : []
+                });
+            } else {
+                out.push({ autoFill: [], snap: [], free: [] });
+            }
+        }
+        return out;
     }
 }
