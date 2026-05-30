@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# HomeSpike installer: push the app, patch Lomiri so that
-#   (1) tapping the Ubuntu logo (BFB) launches HomeSpike instead of the drawer
-#   (2) HomeSpike auto-launches at shell startup, so it's visible after unlock
-#   (3) Long-press on any app in the drawer adds it to HomeSpike's home grid
-# Reboots when done. Idempotent — re-run safely after a Lomiri OTA.
+# @file install.sh
+# @description Full HomeSpike install. Pushes the app tree to /opt/home-spike/,
+#   replaces /usr/share/lomiri/Launcher/Drawer.qml with our patched copy,
+#   sed-patches /usr/share/lomiri/Shell.qml for BFB-rewire + autostart,
+#   creates the cross-process inbox file, and reboots. Idempotent — safe
+#   to re-run after a Lomiri OTA to reapply every change.
+#
+# @status Stable. Tested on OnePlus Nord N100 (billie2) UT 24.04 noble.
+# @issues Hardcodes /home/phablet — assumes the standard UT user. Adjust
+#   if running on a multi-user UT setup.
+# @todo None
 #
 # Usage:  PIN=<phablet-sudo-pin> ./install.sh
 set -euo pipefail
@@ -13,7 +19,6 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 UMBRELLA_ROOT="$(cd "$REPO_ROOT/../.." && pwd)"
 
-# adb discovery: env override → PATH → umbrella's research-bundled copy
 if [ -n "${ADB:-}" ] && [ -x "$ADB" ]; then
   :
 elif command -v adb >/dev/null 2>&1; then
@@ -25,27 +30,27 @@ else
   exit 1
 fi
 
-echo "[1/5] adb=$ADB, checking device..."
+echo "[1/4] adb=$ADB, checking device..."
 "$ADB" devices | grep -q "device$" || { echo "ERROR: no device. plug in phone, enable developer mode."; exit 1; }
 
-echo "[2/5] Pushing app files..."
-"$ADB" push "$REPO_ROOT/app/main.qml"           /tmp/home-spike.main.qml     >/dev/null
-"$ADB" push "$REPO_ROOT/app/home-spike"         /tmp/home-spike.launcher     >/dev/null
-"$ADB" push "$REPO_ROOT/app/home-spike.desktop" /tmp/home-spike.desktop      >/dev/null
+echo "[2/4] Pushing app tree to /tmp/home-spike-staging..."
+"$ADB" shell "rm -rf /tmp/home-spike-staging" >/dev/null
+"$ADB" push "$REPO_ROOT/app" /tmp/home-spike-staging >/dev/null
 
-echo "[3/5] Pushing patched Drawer.qml..."
-"$ADB" push "$REPO_ROOT/app/lomiri-overrides/Drawer.qml" /tmp/home-spike.Drawer.qml >/dev/null
-
-echo "[4/5] Remount rw, install files, patch Shell.qml + Drawer.qml..."
+echo "[3/4] Remount rw, install app tree, patch Shell.qml + Drawer.qml..."
 "$ADB" shell "echo '$PIN' | sudo -S sh -c '
   set -e
   mount -o remount,rw /
+
+  # ----- HomeSpike app: sync whole tree into /opt/home-spike/ -----
+  rm -rf /opt/home-spike
   mkdir -p /opt/home-spike
-  mv /tmp/home-spike.main.qml  /opt/home-spike/main.qml
-  mv /tmp/home-spike.launcher  /opt/home-spike/home-spike
-  mv /tmp/home-spike.desktop   /usr/share/applications/home-spike.desktop
+  # Move the app tree, then lift out files that live elsewhere on the system.
+  mv /tmp/home-spike-staging/* /opt/home-spike/
+  mv /opt/home-spike/home-spike.desktop /usr/share/applications/home-spike.desktop
   chmod 755 /opt/home-spike/home-spike
-  chmod 644 /opt/home-spike/main.qml /usr/share/applications/home-spike.desktop
+  chmod -R u=rwX,go=rX /opt/home-spike
+  chmod 644 /usr/share/applications/home-spike.desktop
 
   # ----- Shell.qml: BFB rewire + autostart -----
   test -f /usr/share/lomiri/Shell.qml.orig || cp /usr/share/lomiri/Shell.qml /usr/share/lomiri/Shell.qml.orig
@@ -54,9 +59,9 @@ echo "[4/5] Remount rw, install files, patch Shell.qml + Drawer.qml..."
     sed -i \"/finishStartUpTimer\\.start();/a\\        shell.activateApplication(\\\"home-spike\\\"); // HOME_SPIKE_AUTOSTART\" /usr/share/lomiri/Shell.qml
   fi
 
-  # ----- Drawer.qml: long-press → add to HomeSpike -----
+  # ----- Drawer.qml: long-press → context menu → add to HomeSpike -----
   test -f /usr/share/lomiri/Launcher/Drawer.qml.orig || cp /usr/share/lomiri/Launcher/Drawer.qml /usr/share/lomiri/Launcher/Drawer.qml.orig
-  mv /tmp/home-spike.Drawer.qml /usr/share/lomiri/Launcher/Drawer.qml
+  cp /opt/home-spike/lomiri-overrides/Drawer.qml /usr/share/lomiri/Launcher/Drawer.qml
   chmod 644 /usr/share/lomiri/Launcher/Drawer.qml
 
   # ----- Inbox file used by Drawer→HomeSpike IPC -----
@@ -68,11 +73,11 @@ echo "[4/5] Remount rw, install files, patch Shell.qml + Drawer.qml..."
   grep -n onShowDashHome /usr/share/lomiri/Shell.qml
   echo --- autostart patch ---
   grep -n -A1 finishStartUpTimer /usr/share/lomiri/Shell.qml
-  echo --- Drawer.qml patched ---
-  grep -n pending-adds /usr/share/lomiri/Launcher/Drawer.qml | head -3
+  echo --- app tree installed ---
+  ls /opt/home-spike/
   mount -o remount,ro /
 '"
 
-echo "[5/5] Rebooting device. Wait ~30s, unlock, HomeSpike should already be there."
+echo "[4/4] Rebooting device. Wait ~30s, unlock, HomeSpike should already be there."
 "$ADB" shell "echo '$PIN' | sudo -S reboot" 2>&1 | grep -v '^\[sudo\]' || true
 echo "done. installed."

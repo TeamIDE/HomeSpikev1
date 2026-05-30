@@ -16,3 +16,4 @@ Thumbs.db
 *.key
 .env
 .env.*
+coding-best-practices.md

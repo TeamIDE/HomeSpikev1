@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
-# Revert HomeSpike: restore Shell.qml from .orig backup and delete the
-# home-spike files. Safe to run even if install never happened.
+# @file uninstall.sh
+# @description Full HomeSpike uninstall. Restores Shell.qml and Drawer.qml
+#   from their .orig backups (which install.sh created on first run),
+#   removes /opt/home-spike, the .desktop file, and the cross-process
+#   inbox. Then reboots. Safe to run even if install never happened —
+#   just prints "no backup found" and moves on.
+#
+# @status Stable.
+# @issues Does NOT delete /home/phablet/.config/home-spike/home-spike.conf
+#   (your saved layout). If you want a clean wipe, remove it manually.
+# @todo None
 #
 # Usage:  PIN=<phablet-sudo-pin> ./uninstall.sh
 set -euo pipefail

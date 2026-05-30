@@ -1,3 +1,19 @@
+/**
+ * @file Drawer
+ * @description HomeSpike's modified copy of Lomiri's drawer. Replaces the
+ *   original delegate's `onPressAndHold` (which used to open an OpenStore
+ *   link) with an in-scene context menu offering "Add to HomeSpike". The
+ *   action writes the appId to a file inbox that the running HomeSpike
+ *   polls and processes.
+ *
+ *   Original Lomiri file: /usr/share/lomiri/Launcher/Drawer.qml
+ *   Installed by HomeSpike's install.sh; original preserved as .orig.
+ *
+ * @status Stable.
+ * @issues OTA-fragile: a Lomiri upstream update overwrites our copy.
+ *   install.sh re-applies on demand.
+ * @todo None
+ */
 /*
  * Copyright (C) 2016 Canonical Ltd.
  * Copyright (C) 2020-2021 UBports Foundation
@@ -17,7 +33,6 @@
 
 import QtQuick 2.15
 import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
 import Lomiri.Launcher 0.1
 import Utils 0.1
 import "../Components"
@@ -296,9 +311,14 @@ FocusScope {
 
                 onClicked: root.applicationSelected(model.appId)
                 onPressAndHold: {
-                  // HomeSpike integration: confirm + write appId to inbox file
-                  PopupUtils.open(homeSpikeAddDialog, drawerDelegate,
-                                  { appId: model.appId, appName: model.name });
+                  // HomeSpike integration: show in-scene context menu near the icon.
+                  // AbstractButton doesn't expose mouseX/Y, so anchor to delegate center.
+                  var pt = drawerDelegate.mapToItem(root, drawerDelegate.width / 2, drawerDelegate.height / 2);
+                  homeSpikeMenu.anchorX = pt.x;
+                  homeSpikeMenu.anchorY = pt.y;
+                  homeSpikeMenu.appId = model.appId;
+                  homeSpikeMenu.appName = model.name;
+                  homeSpikeMenu.visible = true;
                 }
                 z: loader.active ? 1 : 0
 
@@ -388,34 +408,96 @@ FocusScope {
     }
 
     // ============================================================
-    // HomeSpike "Add to home" confirmation dialog
+    // HomeSpike context menu — in-scene Rectangle (not PopupUtils),
+    // so vol-key screenshots capture it and there's no Wayland-popup
+    // z-order weirdness.
     // ============================================================
-    Component {
-        id: homeSpikeAddDialog
-        Dialog {
-            id: dlg
-            property string appId: ""
-            property string appName: ""
-            title: "Add to HomeSpike?"
-            text: '"' + appName + '" will be added to the last page of HomeSpike. You can rearrange or remove it later in HomeSpike\'s edit mode.'
-            Button {
-                text: "Add"
-                color: LomiriColors.green
-                onClicked: {
-                    var path = "/home/phablet/.config/home-spike/pending-adds.txt";
-                    var existing = "";
-                    var xhrR = new XMLHttpRequest();
-                    xhrR.open("GET", "file://" + path, false);
-                    try { xhrR.send(); existing = xhrR.responseText || ""; } catch (e) {}
-                    var xhrW = new XMLHttpRequest();
-                    xhrW.open("PUT", "file://" + path, false);
-                    try { xhrW.send(existing + dlg.appId + "\n"); } catch (e) {}
-                    PopupUtils.close(dlg);
+    MouseArea {
+        anchors.fill: parent
+        z: 999
+        visible: homeSpikeMenu.visible
+        onClicked: homeSpikeMenu.visible = false
+    }
+
+    Rectangle {
+        id: homeSpikeMenu
+        visible: false
+        z: 1000
+        radius: units.gu(0.5)
+        color: "#1d2333"
+        border.color: "#3a4262"
+        border.width: 1
+
+        property string appId: ""
+        property string appName: ""
+        property real anchorX: 0
+        property real anchorY: 0
+
+        // Sized to content — context-menu style, not a centered dialog.
+        width: menuCol.implicitWidth
+        height: menuCol.implicitHeight
+
+        // Position just above the press point, clamped within screen bounds.
+        x: Math.max(units.gu(1), Math.min(parent.width - width - units.gu(1), anchorX - width / 2))
+        y: Math.max(units.gu(1), anchorY - height - units.gu(1))
+
+        Column {
+            id: menuCol
+            // No outer padding — rows fill the menu edge-to-edge.
+
+            // ---- Action rows. Add more here in the future. ----
+            Rectangle {
+                width: addRowLabel.implicitWidth + addRowIcon.width + units.gu(4)
+                height: units.gu(4.5)
+                color: addRowMouse.pressed ? "#3d5af1" : "transparent"
+
+                Row {
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    anchors.leftMargin: units.gu(1.5)
+                    spacing: units.gu(1)
+                    Text {
+                        id: addRowIcon
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "+"
+                        color: "white"
+                        font.pixelSize: units.gu(2.2)
+                        font.bold: true
+                    }
+                    Label {
+                        id: addRowLabel
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Add to HomeSpike"
+                        color: "white"
+                        fontSize: "small"
+                    }
                 }
-            }
-            Button {
-                text: "Cancel"
-                onClicked: PopupUtils.close(dlg)
+
+                MouseArea {
+                    id: addRowMouse
+                    anchors.fill: parent
+                    onClicked: {
+                        var path = "/home/phablet/.config/home-spike/pending-adds.txt";
+                        var existing = "";
+                        var xhrR = new XMLHttpRequest();
+                        xhrR.open("GET", "file://" + path, false);
+                        try {
+                            xhrR.send();
+                            existing = xhrR.responseText || "";
+                        } catch (e) {
+                            // File may not exist yet (HomeSpike never started).
+                            // Treat as empty inbox; the PUT below will create it.
+                        }
+                        var xhrW = new XMLHttpRequest();
+                        xhrW.open("PUT", "file://" + path, false);
+                        try {
+                            xhrW.send(existing + homeSpikeMenu.appId + "\n");
+                        } catch (e) {
+                            console.error("HomeSpike: failed to write " + path + " — " + e);
+                        }
+                        homeSpikeMenu.visible = false;
+                    }
+                }
             }
         }
     }

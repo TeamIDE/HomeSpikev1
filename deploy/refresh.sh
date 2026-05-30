@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# Dev iteration: push the QML/launcher to the device and kill the running
-# home-spike instance so the next BFB tap respawns with new code.
-# Does NOT touch Shell.qml or reboot.
+# @file refresh.sh
+# @description Dev-iteration deploy. Syncs the entire app/ tree to
+#   /opt/home-spike/ and SIGTERMs the running HomeSpike so the next BFB
+#   tap respawns with new code. Does NOT touch Shell.qml or reboot.
+#   With DRAWER=1, also pushes the patched Drawer.qml and SIGKILLs
+#   Lomiri so the new drawer code loads (you'll see the greeter).
 #
-# By default this only refreshes HomeSpike itself (main.qml + wrapper).
-# Pass DRAWER=1 to ALSO push the patched Drawer.qml and restart Lomiri
-# so the new drawer code is loaded — note that restarting Lomiri will
-# log you back to the greeter.
+# @status Stable.
+# @issues SIGKILLing Lomiri logs the user out to the greeter — that's the
+#   cost of getting a clean QML reload. Lomiri caches QML aggressively,
+#   so a graceful restart doesn't reliably reload changed files.
+# @todo None
 #
 # Usage:  PIN=<phablet-sudo-pin>            ./refresh.sh
 #         PIN=<phablet-sudo-pin> DRAWER=1   ./refresh.sh
@@ -30,23 +34,29 @@ fi
 
 "$ADB" devices | grep -q "device$" || { echo "ERROR: no device."; exit 1; }
 
-"$ADB" push "$REPO_ROOT/app/main.qml"   /tmp/home-spike.main.qml     >/dev/null
-"$ADB" push "$REPO_ROOT/app/home-spike" /tmp/home-spike.launcher     >/dev/null
-
-if [ "$WITH_DRAWER" = "1" ]; then
-  "$ADB" push "$REPO_ROOT/app/lomiri-overrides/Drawer.qml" /tmp/home-spike.Drawer.qml >/dev/null
-fi
+# Push the whole app/ tree to a staging location, then sync into /opt/home-spike/
+"$ADB" shell "rm -rf /tmp/home-spike-staging" >/dev/null
+"$ADB" push "$REPO_ROOT/app" /tmp/home-spike-staging >/dev/null
 
 "$ADB" shell "echo '$PIN' | sudo -S sh -c '
+  set -e
   mount -o remount,rw /
-  mv /tmp/home-spike.main.qml /opt/home-spike/main.qml
-  mv /tmp/home-spike.launcher /opt/home-spike/home-spike
-  chmod 644 /opt/home-spike/main.qml
+
+  # Sync app tree into /opt/home-spike (wipe + replace so deletions propagate)
+  rm -rf /opt/home-spike
+  mkdir -p /opt/home-spike
+  mv /tmp/home-spike-staging/* /opt/home-spike/
+  # home-spike.desktop is owned by /usr/share/applications; lift it out
+  if [ -f /opt/home-spike/home-spike.desktop ]; then
+    mv /opt/home-spike/home-spike.desktop /usr/share/applications/home-spike.desktop
+    chmod 644 /usr/share/applications/home-spike.desktop
+  fi
   chmod 755 /opt/home-spike/home-spike
+  chmod -R u=rwX,go=rX /opt/home-spike
 
   if [ \"$WITH_DRAWER\" = \"1\" ]; then
     test -f /usr/share/lomiri/Launcher/Drawer.qml.orig || cp /usr/share/lomiri/Launcher/Drawer.qml /usr/share/lomiri/Launcher/Drawer.qml.orig
-    mv /tmp/home-spike.Drawer.qml /usr/share/lomiri/Launcher/Drawer.qml
+    cp /opt/home-spike/lomiri-overrides/Drawer.qml /usr/share/lomiri/Launcher/Drawer.qml
     chmod 644 /usr/share/lomiri/Launcher/Drawer.qml
   fi
 
@@ -62,7 +72,7 @@ fi
 
   if [ \"$WITH_DRAWER\" = \"1\" ]; then
     echo \"Restarting Lomiri so the new Drawer.qml gets reloaded...\"
-    pkill -TERM -x lomiri || true
+    pkill -9 -f \"^lomiri --\" || true
   fi
 '"
 

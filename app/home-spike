@@ -1,10 +1,16 @@
 #!/bin/sh
-# Add Lomiri's QML module path so we can import AccountsService and read
-# the user-chosen wallpaper the same way the shell does.
+# @file home-spike
+# @description Launcher script invoked by Lomiri's app-launch system via
+#   /usr/share/applications/home-spike.desktop. Exports the multiarch
+#   Lomiri QML import path so main.qml can `import AccountsService 0.1`,
+#   `import Lomiri.Launcher 0.1`, and `import Utils 0.1` — modules that
+#   live under /usr/lib/<arch>-linux-gnu/lomiri/qml and aren't on the
+#   default qmlscene import path.
 #
-# Path is multiarch-dependent (aarch64-linux-gnu, arm-linux-gnueabihf,
-# x86_64-linux-gnu, ...). Glob over all matches so this wrapper works
-# on any architecture UT runs on.
+# @status Stable. Tested on aarch64; the * glob covers armhf and x86_64.
+# @issues None
+# @todo None
+
 LOMIRI_QML="$(echo /usr/lib/*-linux-gnu*/lomiri/qml | tr ' ' ':')"
 export QML2_IMPORT_PATH="${LOMIRI_QML}:${QML2_IMPORT_PATH:-}"
 exec qmlscene /opt/home-spike/main.qml "$@"
