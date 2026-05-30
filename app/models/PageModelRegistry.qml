@@ -43,8 +43,8 @@ Item {
     readonly property var pageModels: [page0, page1, page2, page3, page4]
 
     /** Dock contents (only populated when persist.dockEnabled). */
-    ListModel { id: dock }
-    readonly property alias dockApps: root.dock
+    ListModel { id: _dock }
+    readonly property var dockApps: _dock
 
     // --------------------------------------------------------------
     // Reconciliation: pull saved pageData → fill pageModels + dockApps
@@ -108,13 +108,13 @@ Item {
     }
 
     function _fillDock(dockIds, source, hiddenSet) {
-        dock.clear();
+        _dock.clear();
         for (var dx = 0; dx < dockIds.length && dx < dockMax; ++dx) {
             var did = dockIds[dx];
             if (hiddenSet[did])      continue;
             if (!source[did])        continue;
             if (source[did]._used)   continue;
-            dock.append(source[did]);
+            _dock.append(source[did]);
             source[did]._used = true;
         }
     }
@@ -176,13 +176,13 @@ Item {
         persist.pageData = persist.writeJson(pages);
 
         var dockIds = [];
-        for (var j = 0; j < dock.count; ++j) dockIds.push(dock.get(j).appId);
+        for (var j = 0; j < _dock.count; ++j) dockIds.push(_dock.get(j).appId);
         persist.dockOrder = persist.writeJson(dockIds);
     }
 
     /**
      * Mark an appId as hidden from HomeSpike. Stays installed; just no
-     * longer appears on any page or in the dock. Reverse via addAppsToHome.
+     * longer appears on any page or in the _dock. Reverse via addAppsToHome.
      */
     function hideApp(appId) {
         var hidden = persist.readJson(persist.hiddenAppIds, []);
@@ -194,8 +194,8 @@ Item {
     }
 
     /**
-     * Enable or disable the dock. Disabling moves any docked apps to the
-     * end of the last page; enabling starts with an empty dock.
+     * Enable or disable the _dock. Disabling moves any docked apps to the
+     * end of the last page; enabling starts with an empty _dock.
      */
     function toggleDock(enabled) {
         if (enabled === persist.dockEnabled) return;
@@ -269,8 +269,8 @@ Item {
                 placed[pageModels[p].get(ii).appId] = true;
             }
         }
-        for (var dd = 0; dd < dock.count; ++dd) {
-            placed[dock.get(dd).appId] = true;
+        for (var dd = 0; dd < _dock.count; ++dd) {
+            placed[_dock.get(dd).appId] = true;
         }
         return placed;
     }

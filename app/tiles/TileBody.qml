@@ -39,10 +39,13 @@ Item {
     /** Whether HomeSpike is in edit mode (controls wiggle + X badge). */
     property bool editMode: false
     /** DragController instance for routing drag events. */
-    property var dragController: null
+    property var controller: null
 
     /** Emitted when the user taps the X badge. */
     signal removeRequested(string appId, string appName)
+
+    /** Emitted on long-press while NOT in edit mode (caller should enable it). */
+    signal editModeRequested()
 
     // ============================================================
     // Touch / drag handling (declared FIRST — see file header)
@@ -67,8 +70,8 @@ Item {
             Qt.openUrlExternally("application:///" + body.appId + ".desktop");
         }
         onPressAndHold: {
-            // Long-press outside edit mode = enter edit mode.
-            if (!body.editMode) body.editMode = true;
+            // Long-press outside edit mode = ask the parent to enter edit mode.
+            if (!body.editMode) body.editModeRequested();
         }
         onPressed: {
             pressX = mouseX;
@@ -77,29 +80,29 @@ Item {
             // Defensive: if a previous drag's onReleased never fired
             // (delegate destroyed during a cross-page scroll), clear
             // leftover state without persisting it.
-            if (dragController && dragController.dragging) dragController.abort();
+            if (controller && controller.dragging) controller.abort();
         }
         onPositionChanged: {
-            if (!body.editMode || !dragController) return;
+            if (!body.editMode || !controller) return;
             var dx = mouseX - pressX;
             var dy = mouseY - pressY;
             if (!dragStarted) {
                 if (Math.sqrt(dx*dx + dy*dy) < dragThreshold) return;
                 dragStarted = true;
-                var startPt = mapToItem(dragController, mouseX, mouseY);
-                dragController.startDrag(body.container, body.sourcePage, body.indexInModel,
+                var startPt = mapToItem(controller, mouseX, mouseY);
+                controller.startDrag(body.container, body.sourcePage, body.indexInModel,
                                          body.appId, body.appName, body.iconSrc,
                                          startPt.x, startPt.y);
             }
-            var pt = mapToItem(dragController, mouseX, mouseY);
-            dragController.moveDrag(pt.x, pt.y);
+            var pt = mapToItem(controller, mouseX, mouseY);
+            controller.moveDrag(pt.x, pt.y);
         }
         onReleased: {
-            if (dragController && dragController.dragging) dragController.endDrag();
+            if (controller && controller.dragging) controller.endDrag();
             dragStarted = false;
         }
         onCanceled: {
-            if (dragController && dragController.dragging) dragController.endDrag();
+            if (controller && controller.dragging) controller.endDrag();
             dragStarted = false;
         }
     }
@@ -131,7 +134,7 @@ Item {
                 // Wiggle in edit mode (paused while a drag is in flight
                 // so the dragged tile doesn't visibly jitter)
                 SequentialAnimation on rotation {
-                    running: body.editMode && (!dragController || !dragController.dragging)
+                    running: body.editMode && (!controller || !controller.dragging)
                     loops: Animation.Infinite
                     NumberAnimation { from: -1.5; to: 1.5; duration: 120 }
                     NumberAnimation { from: 1.5; to: -1.5; duration: 120 }

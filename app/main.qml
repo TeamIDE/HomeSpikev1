@@ -146,9 +146,9 @@ Window {
                         sourcePage: pageIndex
                         indexInModel: index
                         editMode: root.editMode
-                        dragController: dragController
+                        controller: dragController
                         onRemoveRequested: (id, name) => confirmRemove.show(id, name)
-                        onEditModeChanged: root.editMode = editMode
+                        onEditModeRequested: root.editMode = true
                     }
                 }
             }
@@ -176,20 +176,33 @@ Window {
         }
     }
 
-    // ----- Dock -----
-    Rectangle {
+    // ----- Dock zone (always full icon-height for hit-testing) -----
+    Item {
         id: dockBar
         visible: persist.dockEnabled
         anchors {
             bottom: parent.bottom; left: parent.left; right: parent.right
-            bottomMargin: units.gu(1.5); leftMargin: units.gu(2); rightMargin: units.gu(2)
+            // Smaller bottom margin sits the dock closer to the screen edge,
+            // matching the iOS-style "icons near the bottom" feel.
+            bottomMargin: units.gu(0.25); leftMargin: units.gu(2); rightMargin: units.gu(2)
         }
         height: root.dockHeight
-        radius: units.gu(2.5)
-        color: dragController.targetingDock ? "#55ffffff" : "#33ffffff"
-        border.color: dragController.targetingDock ? "white" : "transparent"
-        border.width: 1
-        Behavior on color { ColorAnimation { duration: 120 } }
+
+        // Visible background plate — resizable via Settings → "Dock background height".
+        // Vertically centered in the zone; icons can extend above/below if it's thin.
+        Rectangle {
+            id: dockBg
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width
+            height: units.gu(persist.dockBgHeight)
+            radius: Math.min(units.gu(2.5), height / 2)
+            color: dragController.targetingDock ? "#55ffffff" : "#33ffffff"
+            border.color: dragController.targetingDock ? "white" : "transparent"
+            border.width: 1
+            Behavior on color  { ColorAnimation  { duration: 120 } }
+            Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        }
 
         Row {
             anchors.centerIn: parent
@@ -211,14 +224,13 @@ Window {
                         container: "dock"
                         indexInModel: index
                         editMode: root.editMode
-                        dragController: dragController
+                        controller: dragController
                         onRemoveRequested: (id, name) => confirmRemove.show(id, name)
-                        onEditModeChanged: root.editMode = editMode
+                        onEditModeRequested: root.editMode = true
                     }
                 }
             }
         }
-
     }
 
     // ============================================================
@@ -263,8 +275,10 @@ Window {
         pageCount: persist.pageCount
         maxPages: pages.maxPages
         dockEnabled: persist.dockEnabled
-        onPageCountChanged: (n) => pages.setPageCount(n)
+        dockBgHeight: persist.dockBgHeight
+        onPageCountAdjusted: (n) => pages.setPageCount(n)
         onDockToggled: (on) => pages.toggleDock(on)
+        onDockBgHeightAdjusted: (gu) => persist.dockBgHeight = gu
     }
 
     ConfirmRemoveOverlay {

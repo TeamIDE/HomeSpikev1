@@ -24,6 +24,9 @@ Item {
         property string hiddenAppIds: "[]"
         property string dockOrder:    "[]"
         property bool   dockEnabled:  false
+        // Height of the visible dock background plate, in grid units.
+        // 1.0 ≈ a thin line under the icons; 12.0 wraps the icons fully.
+        property real   dockBgHeight: 12.0
     }
 
     // ---- Read/write aliases so callers can bind to and mutate values
@@ -33,6 +36,7 @@ Item {
     property alias hiddenAppIds: store.hiddenAppIds
     property alias dockOrder:    store.dockOrder
     property alias dockEnabled:  store.dockEnabled
+    property alias dockBgHeight: store.dockBgHeight
 
     /**
      * Parse a JSON string with a fallback. Used to read array values

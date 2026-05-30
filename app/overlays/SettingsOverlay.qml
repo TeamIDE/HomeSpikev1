@@ -24,11 +24,17 @@ Rectangle {
     /** Current dock-enabled state (bound to persist.dockEnabled). */
     property bool dockEnabled: false
 
+    /** Current dock background height in grid units (bound to persist.dockBgHeight). */
+    property real dockBgHeight: 12.0
+
     /** Emitted when the user changes the page count via +/-. */
-    signal pageCountChanged(int newCount)
+    signal pageCountAdjusted(int newCount)
 
     /** Emitted when the user flips the dock switch. */
     signal dockToggled(bool enabled)
+
+    /** Emitted as the user drags the dock-height slider. */
+    signal dockBgHeightAdjusted(real newGu)
 
     anchors.fill: parent
     z: 900
@@ -88,7 +94,7 @@ Rectangle {
                         text: "−"
                         width: units.gu(4)
                         enabled: root.pageCount > 1
-                        onClicked: root.pageCountChanged(root.pageCount - 1)
+                        onClicked: root.pageCountAdjusted(root.pageCount - 1)
                     }
                     Label {
                         text: root.pageCount
@@ -102,7 +108,7 @@ Rectangle {
                         text: "+"
                         width: units.gu(4)
                         enabled: root.pageCount < root.maxPages
-                        onClicked: root.pageCountChanged(root.pageCount + 1)
+                        onClicked: root.pageCountAdjusted(root.pageCount + 1)
                     }
                 }
             }
@@ -128,6 +134,34 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     onCheckedChanged: {
                         if (checked !== root.dockEnabled) root.dockToggled(checked);
+                    }
+                }
+            }
+
+            // ---- Dock background height slider ----
+            Column {
+                width: parent.width
+                spacing: units.gu(0.5)
+                visible: root.dockEnabled
+                Label { text: "Dock background height"; color: "white" }
+                Label {
+                    text: "Thin line under the icons → full wrap around them."
+                    color: "#9fa9c0"
+                    fontSize: "small"
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                }
+                Slider {
+                    width: parent.width
+                    minimumValue: 1.0
+                    maximumValue: 12.0
+                    value: root.dockBgHeight
+                    live: true
+                    function formatValue(v) { return Number(v).toFixed(1) + " gu"; }
+                    onValueChanged: {
+                        if (Math.abs(value - root.dockBgHeight) > 0.01) {
+                            root.dockBgHeightAdjusted(value);
+                        }
                     }
                 }
             }
