@@ -716,17 +716,14 @@ StyledItem {
             // conditions
             readonly property bool lockAllowed: !collidingWithPanel && !panel.fullscreenMode && !wizard.active && !tutorial.demonstrateLauncher
 
-            // HomeSpike: BFB (Ubuntu logo) minimises all running apps so
-            // the HomeSpike background layer is revealed. The drawer is
-            // still reachable via the long-edge-swipe.
-            // BFB → showHome() (not minimizeAllWindows) so the wallpaper
-            // Loader is promoted to the top of the stage. Plain minimize
-            // alone fails in staged mode where one app is always rendered
-            // full-size. See stage.showHome() for details.
+            // HomeSpike: BFB (Ubuntu logo) → stage.showHome(), which
+            // promotes the HomeSpike wallpaper Loader to z=9999 so it
+            // visually covers any running app. The drawer is still
+            // reachable via the long-edge-swipe.
             //
             // When HomeSpike is disabled via Settings → Personal → HomeSpike,
-            // BFB reverts to stock Lomiri behavior — call showHome() (the
-            // shell-level one which opens the drawer) instead.
+            // BFB reverts to stock behavior — call showHome() (the
+            // shell-level one, which opens the drawer) instead.
             onShowDashHome: hsEnabled ? stage.showHome() : showHome()
             onLauncherApplicationSelected: {
                 greeter.notifyUserRequestedApp();

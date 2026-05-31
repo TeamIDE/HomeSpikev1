@@ -79,11 +79,6 @@ FocusScope {
 
     readonly property bool spreadShown: state == "spread"
 
-    // HomeSpike: public wrapper for the priv.minimizeAllWindows() helper,
-    // so the BFB rewire in Shell.qml and the home button in Spread.qml can
-    // both invoke it without poking the private QtObject.
-    function minimizeAllWindows() { priv.minimizeAllWindows(); }
-
     // HomeSpike: true while the user is on the home surface. The wallpaper
     // Loader's z is bound to this so we can promote HomeSpike above the
     // app delegates — visually covering whatever app is running, without
@@ -565,10 +560,7 @@ FocusScope {
         readonly property real windowDecorationHeight: units.gu(3)
     }
 
-    Component.onCompleted: {
-        priv.updateMainAndSideStageIndexes();
-        console.warn("HomeSpike Stage: initial hsEnabled=" + hsEnabled);
-    }
+    Component.onCompleted: priv.updateMainAndSideStageIndexes()
 
     Connections {
         target: panelState
@@ -839,18 +831,16 @@ FocusScope {
             value: root.launcherLeftMargin
             when: wallpaper.status === Loader.Ready
         }
-        // The HomeSpike root signals launchRequested the instant the
-        // user taps a tile (before Mir even sees the activate request).
-        // Drop homeShown immediately so the wallpaper Loader demotes back
-        // to z=-2 — otherwise Mir's focus-echo on the same delegate is
-        // mis-classified as a stale echo and homeShown stays stuck on top.
+        // The HomeSpike root signals launchRequested the instant the user
+        // taps a tile, before the URL dispatcher activates the app. Drop
+        // homeShown immediately so the wallpaper Loader demotes back to
+        // z=-2 in the same frame; otherwise the user sees the new app
+        // appear briefly behind HomeSpike before Mir's focus event lands.
         Connections {
             target: wallpaper.item
             enabled: wallpaper.status === Loader.Ready
             function onLaunchRequested(appId) {
                 root.homeShown = false;
-                root._inHomeGrace = false;
-                root._focusedAtHomeShow = null;
             }
         }
 
