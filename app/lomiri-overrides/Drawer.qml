@@ -245,6 +245,108 @@ FocusScope {
                 leftMargin: root.panelWidth
             }
 
+            // POC (bounty issue #127): which view to show.
+            // "standard"   — stock Lomiri flat grid, no headers (default)
+            // "az"         — flat grid with sticky letter section headers
+            // "categories" — sectioned by XDG bucket
+            property string viewMode: "standard"
+            readonly property var _modeCycle: ["standard", "az", "categories"]
+            readonly property var _modeLabels: {
+                "standard":   "Standard",
+                "az":         "A–Z",
+                "categories": "Categories"
+            }
+            function cycleViewMode() {
+                var idx = _modeCycle.indexOf(viewMode);
+                viewMode = _modeCycle[(idx + 1) % _modeCycle.length];
+                if (viewMode === "categories" || viewMode === "az") rebuildBuckets();
+            }
+
+            // POC category resolver. Real implementation should read the
+            // XDG Categories= field — AppDrawerModel doesn't expose that
+            // role today (roles: appId, name, icon, comment, keywords,
+            // pinned). For the MR this needs a small C++ patch to
+            // AppDrawerModel. For now we heuristic on appId + name so we
+            // have something visual to screenshot for the UX team.
+            readonly property var _bucketOrder: [
+                "Internet", "Office", "Multimedia", "Games",
+                "Utilities", "Development", "Settings", "Other"
+            ]
+            function bucketFor(appId, name) {
+                var t = (String(appId || "") + " " + String(name || "")).toLowerCase();
+                if (/phone|messag|contact|mail|dekko|browser|morph|chat|web|email|teleg|signal|matrix|firefox|webapp/.test(t)) return "Internet";
+                if (/music|media|video|player|camera|gallery|photo|audio|youtub|spotif|podcast|radio/.test(t)) return "Multimedia";
+                if (/game|2048|chess|cards|tetri|sudoku|puzzle|play|arcade/.test(t)) return "Games";
+                if (/calendar|notes|writer|doc|office|spread|present|pdf|reader|task|todo/.test(t)) return "Office";
+                if (/setting|tweak|systemcontrol|preference|control-?center/.test(t)) return "Settings";
+                if (/develop|debug|^code|editor|programming|terminal|console|ide/.test(t)) return "Development";
+                if (/calc|clock|file|weather|alarm|timer|util|tool|map|gps|battery|monitor|barcode|scanner|store|installer|backup/.test(t)) return "Utilities";
+                return "Other";
+            }
+
+            // Computed: list of {name, apps} for the sectioned view.
+            // AppDrawerProxyModel exposes only `count` and `index` to QML
+            // (no `get`, no `data`), so we can't iterate it from JS
+            // directly. Workaround: a hidden Repeater materialises each
+            // row as a delegate Item we CAN read via itemAt(r), then
+            // we bucket the resulting JS array.
+            property var bucketGroups: []
+            Repeater {
+                id: rowHarvester
+                model: sortProxyModel
+                delegate: Item {
+                    visible: false
+                    readonly property string hAppId: model.appId
+                    readonly property string hName:  model.name
+                    readonly property string hIcon:  model.icon
+                }
+                onItemAdded:   bucketRebuildTimer.restart()
+                onItemRemoved: bucketRebuildTimer.restart()
+            }
+            Timer {
+                id: bucketRebuildTimer
+                interval: 80              // batch consecutive add/remove
+                onTriggered: contentContainer.rebuildBuckets()
+            }
+            function rebuildBuckets() {
+                // Categories — XDG-bucket grouping.
+                var bucketMap = {};
+                for (var i = 0; i < _bucketOrder.length; ++i) bucketMap[_bucketOrder[i]] = [];
+                // A-Z — single-letter grouping.
+                var letterMap = {};
+                for (var r = 0; r < rowHarvester.count; ++r) {
+                    var it = rowHarvester.itemAt(r);
+                    if (!it) continue;
+                    var appObj = { appId: it.hAppId, name: it.hName, icon: it.hIcon };
+                    var b = bucketFor(it.hAppId, it.hName);
+                    bucketMap[b].push(appObj);
+                    var ch = (it.hName || "").trim().charAt(0).toUpperCase();
+                    if (!/[A-Z]/.test(ch)) ch = "#";
+                    if (!letterMap[ch]) letterMap[ch] = [];
+                    letterMap[ch].push(appObj);
+                }
+                var bOut = [];
+                for (var k = 0; k < _bucketOrder.length; ++k) {
+                    var bn = _bucketOrder[k];
+                    if (bucketMap[bn].length > 0) bOut.push({ name: bn, apps: bucketMap[bn] });
+                }
+                bucketGroups = bOut;
+
+                var aOut = [];
+                var letters = Object.keys(letterMap).sort();
+                // Put "#" at the end if present.
+                if (letters.indexOf("#") >= 0) {
+                    letters.splice(letters.indexOf("#"), 1);
+                    letters.push("#");
+                }
+                for (var li = 0; li < letters.length; ++li) {
+                    var L = letters[li];
+                    aOut.push({ name: L, apps: letterMap[L] });
+                }
+                azGroups = aOut;
+            }
+            property var azGroups: []
+
             Item {
                 id: searchFieldContainer
                 height: units.gu(4)
@@ -277,14 +379,47 @@ FocusScope {
                 }
             }
 
+            // POC: single cycle button under the search field. Tap to
+            // advance to the next view mode (Standard → A-Z → Categories
+            // → Standard). Compact, right-aligned, Lomiri-toned.
+            Rectangle {
+                id: viewModeButton
+                objectName: "drawerViewModeButton"
+                anchors {
+                    right: parent.right; top: searchFieldContainer.bottom
+                    rightMargin: units.gu(1); topMargin: units.gu(0.5)
+                }
+                width: viewModeLabel.implicitWidth + units.gu(3)
+                height: units.gu(3.5)
+                color: viewModeMouse.pressed ? "#2a3257" : "#1d2540"
+                border.color: "#3a456a"; border.width: 1
+                radius: height / 2
+                Behavior on color { ColorAnimation { duration: 100 } }
+                Label {
+                    id: viewModeLabel
+                    anchors.centerIn: parent
+                    text: contentContainer._modeLabels[contentContainer.viewMode]
+                    color: "#cad2e8"
+                    fontSize: "small"
+                    font.bold: true
+                }
+                MouseArea {
+                    id: viewModeMouse
+                    anchors.fill: parent
+                    onClicked: contentContainer.cycleViewMode()
+                }
+            }
+
             DrawerGridView {
                 id: appList
                 objectName: "drawerAppList"
+                visible: contentContainer.viewMode === "standard"
                 anchors {
                     left: parent.left
                     right: parent.right
-                    top: searchFieldContainer.bottom
+                    top: viewModeButton.bottom
                     bottom: parent.bottom
+                    topMargin: units.gu(0.5)
                 }
                 height: rows * delegateHeight
                 clip: true
@@ -302,6 +437,103 @@ FocusScope {
                 refreshing: appDrawerModel.refreshing
                 onRefresh: {
                     appDrawerModel.refresh();
+                }
+            }
+
+            // POC: sectioned view. Vertical scroll of buckets; each bucket
+            // = a sticky-ish header + a Flow of icon tiles.
+            ListView {
+                id: sectionedList
+                objectName: "drawerSectionedList"
+                visible: contentContainer.viewMode === "categories" || contentContainer.viewMode === "az"
+                anchors {
+                    left: parent.left
+                    right: parent.right
+                    top: viewModeButton.bottom
+                    bottom: parent.bottom
+                    topMargin: units.gu(0.5)
+                }
+                clip: true
+                spacing: units.gu(1)
+
+                model: contentContainer.viewMode === "az"
+                       ? contentContainer.azGroups
+                       : contentContainer.bucketGroups
+                delegate: Column {
+                    width: sectionedList.width
+                    spacing: units.gu(0.5)
+                    // Section header.
+                    Item {
+                        width: parent.width
+                        height: units.gu(3.5)
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.leftMargin: units.gu(1); anchors.rightMargin: units.gu(1)
+                            color: "#15192c"
+                            radius: units.gu(0.5)
+                            Text {
+                                anchors {
+                                    left: parent.left; verticalCenter: parent.verticalCenter
+                                    leftMargin: units.gu(1.5)
+                                }
+                                text: modelData.name + "  ·  " + modelData.apps.length
+                                color: "#cad2e8"
+                                font.pixelSize: units.gu(1.7)
+                                font.bold: true
+                            }
+                        }
+                    }
+                    // Bucket contents — flow of icons, 4 per row.
+                    Flow {
+                        width: parent.width - units.gu(2)
+                        x: units.gu(1)
+                        spacing: 0
+                        Repeater {
+                            model: modelData.apps
+                            delegate: AbstractButton {
+                                width: sectionedList.width / 4
+                                height: units.gu(11)
+                                objectName: "drawerSectItem_" + modelData.appId
+                                onClicked: root.applicationSelected(modelData.appId)
+                                onPressAndHold: {
+                                    if (!hsSettings.enabled) return;
+                                    var pt = mapToItem(root, width / 2, height / 2);
+                                    homeSpikeMenu.anchorX = pt.x;
+                                    homeSpikeMenu.anchorY = pt.y;
+                                    homeSpikeMenu.appId = modelData.appId;
+                                    homeSpikeMenu.appName = modelData.name;
+                                    homeSpikeMenu.visible = true;
+                                }
+                                Column {
+                                    anchors.centerIn: parent
+                                    spacing: units.gu(0.5)
+                                    LomiriShape {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        width: units.gu(6)
+                                        height: 7.5 / 8 * width
+                                        radius: "medium"
+                                        borderSource: 'undefined'
+                                        sourceFillMode: LomiriShape.PreserveAspectCrop
+                                        source: Image {
+                                            asynchronous: true
+                                            sourceSize.width: units.gu(6)
+                                            source: modelData.icon
+                                        }
+                                    }
+                                    Label {
+                                        text: modelData.name
+                                        width: units.gu(9)
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        horizontalAlignment: Text.AlignHCenter
+                                        fontSize: "small"
+                                        wrapMode: Text.WordWrap
+                                        maximumLineCount: 2
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
