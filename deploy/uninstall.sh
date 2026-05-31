@@ -68,6 +68,16 @@ fi
   # Sweep any home-spike.desktop left behind from older standalone-app installs.
   rm -f /usr/share/applications/home-spike.desktop
   rm -rf /home/phablet/.config/home-spike/pending-adds.txt
+
+  # ----- Remove gsettings schema + system-settings plugin -----
+  if [ -f /usr/share/glib-2.0/schemas/com.lomiri.HomeSpike.gschema.xml ]; then
+    rm -f /usr/share/glib-2.0/schemas/com.lomiri.HomeSpike.gschema.xml
+    glib-compile-schemas /usr/share/glib-2.0/schemas/
+    echo removed gschema
+  fi
+  rm -f /usr/share/lomiri-system-settings/home-spike.settings
+  rm -rf /usr/share/lomiri-system-settings/qml-plugins/home-spike
+
   mount -o remount,ro /
 '"
 

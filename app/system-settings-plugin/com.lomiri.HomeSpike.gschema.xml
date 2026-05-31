@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  HomeSpike gsettings schema.
+  Installed to /usr/share/glib-2.0/schemas/ and registered by
+  `glib-compile-schemas /usr/share/glib-2.0/schemas/`.
+
+  Single source of truth for the system-settings toggle. The plugin
+  page reads/writes this key; HomeSpike's overrides (Stage.qml,
+  Shell.qml, Drawer.qml, main.qml) bind to it so flipping the switch
+  takes effect live with no reboot.
+-->
+<schemalist>
+  <schema path="/com/lomiri/HomeSpike/" id="com.lomiri.HomeSpike">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>HomeSpike home screen enabled</summary>
+      <description>
+        When true, HomeSpike replaces the default Lomiri home behavior —
+        BFB minimises apps to reveal HomeSpike, the spread gets a home
+        button, the drawer offers "Add to HomeSpike", and the bottom dock
+        can be enabled. When false, Lomiri behaves as upstream and
+        HomeSpike's UI is hidden (the override files stay installed but
+        their HomeSpike-specific code paths short-circuit).
+      </description>
+    </key>
+  </schema>
+</schemalist>

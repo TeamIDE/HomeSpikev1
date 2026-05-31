@@ -1,0 +1,18 @@
+{
+    "name": "HomeSpike",
+    "icon": "preferences-desktop-launcher-symbolic",
+    "translations": "lomiri-system-settings",
+    "category": "personal",
+    "priority": 5,
+    "keywords": [
+        "home",
+        "homespike",
+        "launcher",
+        "widget",
+        "dock",
+        "appearance"
+    ],
+    "page-component": "PageComponent.qml",
+    "has-dynamic-keywords": false,
+    "has-dynamic-visibility": false
+}

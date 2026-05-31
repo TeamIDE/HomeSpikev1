@@ -335,6 +335,16 @@ StyledItem {
         schema.id: "com.lomiri.Shell"
     }
 
+    // HomeSpike: master kill-switch. Mirrors the GSettings in Stage.qml;
+    // having a Shell-level reader lets BFB short-circuit before calling
+    // into the stage. Bound to the toggle in Settings → Personal →
+    // HomeSpike.
+    GSettings {
+        id: hsSettings
+        schema.id: "com.lomiri.HomeSpike"
+    }
+    readonly property bool hsEnabled: hsSettings.enabled
+
     PanelState {
         id: panelState
         objectName: "panelState"
@@ -709,11 +719,15 @@ StyledItem {
             // HomeSpike: BFB (Ubuntu logo) minimises all running apps so
             // the HomeSpike background layer is revealed. The drawer is
             // still reachable via the long-edge-swipe.
-            // HomeSpike: BFB → showHome() (not minimizeAllWindows) so the
-            // wallpaper Loader is promoted to the top of the stage. Plain
-            // minimize alone fails in staged mode where one app is always
-            // rendered full-size. See stage.showHome() for details.
-            onShowDashHome: stage.showHome()
+            // BFB → showHome() (not minimizeAllWindows) so the wallpaper
+            // Loader is promoted to the top of the stage. Plain minimize
+            // alone fails in staged mode where one app is always rendered
+            // full-size. See stage.showHome() for details.
+            //
+            // When HomeSpike is disabled via Settings → Personal → HomeSpike,
+            // BFB reverts to stock Lomiri behavior — call showHome() (the
+            // shell-level one which opens the drawer) instead.
+            onShowDashHome: hsEnabled ? stage.showHome() : showHome()
             onLauncherApplicationSelected: {
                 greeter.notifyUserRequestedApp();
                 shell.activateApplication(appId);

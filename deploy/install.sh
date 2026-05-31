@@ -80,12 +80,30 @@ echo "[3/4] Remount rw, install app tree, replace Lomiri overrides..."
   touch /home/phablet/.config/home-spike/pending-adds.txt
   chown -R phablet:phablet /home/phablet/.config/home-spike
 
+  # ----- GSettings schema for the master kill-switch -----
+  cp /opt/home-spike/system-settings-plugin/com.lomiri.HomeSpike.gschema.xml \
+     /usr/share/glib-2.0/schemas/com.lomiri.HomeSpike.gschema.xml
+  chmod 644 /usr/share/glib-2.0/schemas/com.lomiri.HomeSpike.gschema.xml
+  glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+  # ----- System Settings plugin (Settings → Personal → HomeSpike) -----
+  cp /opt/home-spike/system-settings-plugin/home-spike.settings \
+     /usr/share/lomiri-system-settings/home-spike.settings
+  chmod 644 /usr/share/lomiri-system-settings/home-spike.settings
+  mkdir -p /usr/share/lomiri-system-settings/qml-plugins/home-spike
+  cp /opt/home-spike/system-settings-plugin/PageComponent.qml \
+     /usr/share/lomiri-system-settings/qml-plugins/home-spike/PageComponent.qml
+  chmod 644 /usr/share/lomiri-system-settings/qml-plugins/home-spike/PageComponent.qml
+
   echo --- overrides installed ---
   for f in Shell.qml Launcher/Drawer.qml Stage/Spread/Spread.qml Stage/Stage.qml; do
     if [ -f /usr/share/lomiri/$f.orig ]; then
       echo "  /usr/share/lomiri/$f -- backup at .orig"
     fi
   done
+  echo "  /usr/share/glib-2.0/schemas/com.lomiri.HomeSpike.gschema.xml -- new"
+  echo "  /usr/share/lomiri-system-settings/home-spike.settings -- new"
+  echo "  /usr/share/lomiri-system-settings/qml-plugins/home-spike/ -- new"
   ls /opt/home-spike/
   mount -o remount,ro /
 '"

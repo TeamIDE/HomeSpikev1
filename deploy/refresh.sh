@@ -71,6 +71,22 @@ fi
               /usr/share/lomiri/Launcher/Drawer.qml \
               /usr/share/lomiri/Stage/Spread/Spread.qml \
               /usr/share/lomiri/Stage/Stage.qml
+
+    # Sync the gsettings schema + system-settings plugin too. These rarely
+    # change, but the LOMIRI=1 path is the only one that touches /usr, so
+    # bundle them here rather than gating on a separate flag.
+    cp /opt/home-spike/system-settings-plugin/com.lomiri.HomeSpike.gschema.xml \
+       /usr/share/glib-2.0/schemas/com.lomiri.HomeSpike.gschema.xml
+    chmod 644 /usr/share/glib-2.0/schemas/com.lomiri.HomeSpike.gschema.xml
+    glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+    cp /opt/home-spike/system-settings-plugin/home-spike.settings \
+       /usr/share/lomiri-system-settings/home-spike.settings
+    chmod 644 /usr/share/lomiri-system-settings/home-spike.settings
+    mkdir -p /usr/share/lomiri-system-settings/qml-plugins/home-spike
+    cp /opt/home-spike/system-settings-plugin/PageComponent.qml \
+       /usr/share/lomiri-system-settings/qml-plugins/home-spike/PageComponent.qml
+    chmod 644 /usr/share/lomiri-system-settings/qml-plugins/home-spike/PageComponent.qml
   fi
 
   mount -o remount,ro /

@@ -18,6 +18,7 @@
  *         since it's the canvas everything else binds to).
  */
 import QtQuick 2.15
+import GSettings 1.0
 import Lomiri.Components 1.3
 import "persistence"
 import "wallpaper"
@@ -61,6 +62,18 @@ Item {
      *  misread as the launch and the home overlay stays stuck on top. */
     signal launchRequested(string appId)
 
+    // Master kill-switch (Settings → Personal → HomeSpike). When false,
+    // HomeSpike's UI hides — wallpaper Image stays visible so the screen
+    // still has a backdrop, but the grid, dock, page dots, edit chrome,
+    // and overlays all vanish. Override files in lomiri-overrides also
+    // bind to this same gsettings key, so the rest of the shell reverts
+    // to stock behavior in lockstep.
+    GSettings {
+        id: hsSettings
+        schema.id: "com.lomiri.HomeSpike"
+    }
+    readonly property bool uiEnabled: hsSettings.enabled
+
     // ---- Core modules ----
     PersistedSettings { id: persist }
     WallpaperResolver { id: wallpaper }
@@ -99,6 +112,9 @@ Item {
     // ============================================================
     // Visual stack
     // ============================================================
+    // Wallpaper Image — stays visible even when HomeSpike is disabled,
+    // since we replaced Lomiri's original Wallpaper element. Without
+    // this, "HomeSpike off" would mean "no wallpaper" — broken.
     Image {
         anchors.fill: parent
         source: wallpaper.uri
@@ -106,11 +122,17 @@ Item {
         smooth: true
         asynchronous: true
     }
-    Rectangle { anchors.fill: parent; color: "#000000"; opacity: 0.4 }
+    // Dim overlay — only applied when HomeSpike's UI is shown, so it
+    // doesn't darken the wallpaper when the user has HomeSpike disabled.
+    Rectangle {
+        anchors.fill: parent; color: "#000000"; opacity: 0.4
+        visible: root.uiEnabled
+    }
 
     // ----- Horizontal pages ListView -----
     ListView {
         id: pagesView
+        visible: root.uiEnabled
         anchors {
             top: parent.top; left: parent.left; right: parent.right
             bottom: pageDots.top
@@ -243,7 +265,7 @@ Item {
             bottomMargin: units.gu(1.5)
         }
         spacing: units.gu(1)
-        visible: persist.pageCount > 1
+        visible: root.uiEnabled && persist.pageCount > 1
         Repeater {
             model: persist.pageCount
             delegate: Rectangle {
@@ -258,7 +280,7 @@ Item {
     // ----- Dock zone (always full icon-height for hit-testing) -----
     Item {
         id: dockBar
-        visible: persist.dockEnabled
+        visible: root.uiEnabled && persist.dockEnabled
         anchors {
             bottom: parent.bottom; left: parent.left; right: parent.right
             // Smaller bottom margin sits the dock closer to the screen edge,
@@ -317,7 +339,7 @@ Item {
     // Edit-mode chrome
     // ============================================================
     EditModeDonePill {
-        active: root.editMode
+        active: root.uiEnabled && root.editMode
         anchors {
             top: parent.top; right: parent.right
             topMargin: units.gu(4); rightMargin: units.gu(2)
@@ -326,7 +348,7 @@ Item {
     }
 
     SettingsGearButton {
-        active: root.editMode
+        active: root.uiEnabled && root.editMode
         bottomOffset: persist.dockEnabled ? root.dockHeight + units.gu(2.5) : units.gu(4)
         anchors {
             bottom: parent.bottom; right: parent.right

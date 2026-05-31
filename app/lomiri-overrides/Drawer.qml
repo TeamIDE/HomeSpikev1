@@ -71,6 +71,13 @@ FocusScope {
     property var oldSelectionStart: null
     property var oldSelectionEnd: null
 
+    // HomeSpike: master kill-switch. When false, the long-press
+    // "Add to HomeSpike" menu is suppressed (drawer behaves like stock).
+    GSettings {
+        id: hsSettings
+        schema.id: "com.lomiri.HomeSpike"
+    }
+
     anchors {
         onRightMarginChanged: refocusInputAfterUserLetsGo()
     }
@@ -313,6 +320,9 @@ FocusScope {
                 onPressAndHold: {
                   // HomeSpike integration: show in-scene context menu near the icon.
                   // AbstractButton doesn't expose mouseX/Y, so anchor to delegate center.
+                  // Skip when HomeSpike is disabled — long-press becomes a no-op (matches
+                  // stock Lomiri, which doesn't bind long-press at all in the drawer).
+                  if (!hsSettings.enabled) return;
                   var pt = drawerDelegate.mapToItem(root, drawerDelegate.width / 2, drawerDelegate.height / 2);
                   homeSpikeMenu.anchorX = pt.x;
                   homeSpikeMenu.anchorY = pt.y;
