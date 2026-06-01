@@ -158,7 +158,7 @@ The `PIN` is the same one used for the existing `n100-be2012-crossflash/installe
 
 - **OTA wipes overrides.** Re-run `install.sh` after any system update.
 - **Lomiri restarts log you to the greeter.** Lomiri caches QML aggressively, so iterating on the overrides means `refresh.sh LOMIRI=1` which `pkill`s lomiri — you'll see the greeter, unlock to continue.
-- **No widget API yet.** This release is the home surface itself. A widget system is the next milestone; the current QML is the scaffolding for an eventual ImGui+Lua reimplementation that'll host third-party widgets behind the same load-point.
+- **No widget API yet.** A widget system is the next milestone — see [`WidgetAPI.md`](WidgetAPI.md) for the v2 scoping. Widgets are plain QML loaded into HomeSpike's process for v2.0 (first-party only); v2.1 adds out-of-process Click-app widgets via Mir-surface compositing for third-party apps.
 - **App launch from cards** uses `Qt.openUrlExternally("application:///")` which works through the URL dispatcher. If AppArmor ever blocks it, the fallback is direct `ApplicationManager.startApplication()` — but that needs more shell-level privileges.
 
 ## Tested devices
