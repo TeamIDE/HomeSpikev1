@@ -10,7 +10,7 @@ HomeSpike uses [semantic versioning](https://semver.org/).
 ### Added
 - **System Settings integration.** New entry at *Settings → Personal → HomeSpike* with a master on/off toggle. Flipping it takes effect live — no restart, no logout. When off, the phone reverts to stock Lomiri behavior (BFB opens the drawer, spread home button hides, "Add to HomeSpike" drawer menu hides, launcher panel stops auto-collapsing, HomeSpike's UI is invisible while the wallpaper stays).
 - **gsettings schema** `com.lomiri.HomeSpike` (single `enabled` boolean key, default `true`). Single source of truth for the toggle. Survives HomeSpike crashes since the override files read it directly.
-- **`ClickInstaller.md`** — scoping doc for a future Click package that would ship HomeSpike through OpenStore (one-tap install, no `PIN=… ./install.sh` dance).
+- **[`docs/ClickInstaller.md`](docs/ClickInstaller.md)** — scoping doc for a future Click package that would ship HomeSpike through OpenStore (one-tap install, no `PIN=… ./install.sh` dance).
 - **Drawer view modes — Standard / A-Z / Categories.** New pill button under the drawer's search field cycles through three layouts: *Standard* (stock Lomiri flat alphabetical grid, default), *A-Z* (same icons sectioned by single-letter sticky headers), *Categories* (XDG-bucket sections — Internet, Office, Multimedia, Games, Utilities, Development, Settings, Other; empty buckets hidden). Built initially as a POC for UBports bounty issue #127 (since claimed by another contributor); shipping it as a HomeSpike feature regardless.
 
 ### Changed
